@@ -1,308 +1,349 @@
-// Module for service slider functionality with improved reliability
+// Service slider module optimized for Swup page transitions
+let sliderInstances = [];
+
 export function initializeServiceSlider() {
-    console.log("Service Slider: Initializing...");
+  console.log("Service Slider: Initializing...");
   
-    // Try multiple selector patterns to ensure we find the elements
-    // This makes it more robust across template changes
-    const findButtons = () => {
-      const selectors = [
-        "#service-overview-button-wrapper .service-overview-button",
-        ".service-overview-button-wrapper .service-overview-button",
-        "[data-button-index]" // Add data attributes as a fallback
-      ];
-      
-      for (const selector of selectors) {
-        const elements = document.querySelectorAll(selector);
-        if (elements.length) {
-          console.log(`Service Slider: Found ${elements.length} buttons with selector "${selector}"`);
-          return elements;
-        }
-      }
-      
-      console.warn("Service Slider: No buttons found!");
-      return [];
-    };
-    
-    // Find slider in multiple ways
-    const findSlider = () => {
-      const selectors = [
-        ".service-overview-slider .w-slider-nav",
-        ".w-slider-nav",
-        ".service-overview-slider [data-slider-nav='true']"
-      ];
-      
-      for (const selector of selectors) {
-        const elements = document.querySelectorAll(selector);
-        for (const el of elements) {
-          // Only return if it has slider dots
-          if (el.querySelectorAll(".w-slider-dot").length) {
-            console.log(`Service Slider: Found slider nav with selector "${selector}"`);
-            return el;
-          }
-        }
-      }
-      
-      console.warn("Service Slider: No slider nav found!");
-      return null;
-    };
+  // Clean up any previous instances to prevent memory leaks
+  cleanupPreviousInstances();
   
-    // Get elements using our more robust methods
-    const buttons = findButtons();
-    const sliderNav = findSlider();
+  // Initialize new instance
+  const instance = createSliderInstance();
+  if (instance) {
+    sliderInstances.push(instance);
+  }
+}
+
+function cleanupPreviousInstances() {
+  sliderInstances.forEach(instance => {
+    if (instance && instance.cleanup) {
+      instance.cleanup();
+    }
+  });
+  sliderInstances = [];
+  console.log("Service Slider: Cleaned up previous instances");
+}
+
+function createSliderInstance() {
+  // Find the slider elements
+  const buttonWrapper = document.getElementById("service-overview-button-wrapper");
+  if (!buttonWrapper) {
+    console.log("Service Slider: Button wrapper not found");
+    return null;
+  }
+  
+  const buttons = buttonWrapper.querySelectorAll(".service-overview-button");
+  if (!buttons.length) {
+    console.log("Service Slider: No buttons found");
+    return null;
+  }
+  
+  const sliderContainer = document.querySelector(".service-overview-slider");
+  if (!sliderContainer) {
+    console.log("Service Slider: Slider container not found");
+    return null;
+  }
+  
+  // Find or create slider nav
+  let sliderNav = sliderContainer.querySelector(".w-slider-nav");
+  if (!sliderNav || sliderNav.classList.contains("hide")) {
+    // If slider nav is hidden, we'll need to interact with Webflow's internal slider
+    // Find all slides to determine how many dots we need
+    const slides = sliderContainer.querySelectorAll(".w-slide");
     
-    if (!buttons.length || !sliderNav) {
-      console.warn("Service Slider: Required elements not found, aborting initialization");
-      return;
+    // Try to unhide existing nav
+    if (sliderNav) {
+      sliderNav.classList.remove("hide");
+      console.log("Service Slider: Unhiding existing slider nav");
     }
     
-    const sliderDots = sliderNav.querySelectorAll(".w-slider-dot");
-    
-    if (!sliderDots.length) {
-      console.warn("Service Slider: No slider dots found, aborting initialization");
-      return;
+    // If we still don't have a working nav, we'll need to work directly with Webflow's slider API
+    if (!sliderNav || sliderNav.querySelectorAll(".w-slider-dot").length === 0) {
+      console.log("Service Slider: Using Webflow API fallback");
+      return createWebflowApiInstance(buttons, sliderContainer, slides.length);
     }
+  }
+  
+  const sliderDots = sliderNav.querySelectorAll(".w-slider-dot");
+  if (!sliderDots.length) {
+    console.log("Service Slider: No slider dots found");
+    return null;
+  }
+  
+  console.log(`Service Slider: Found ${buttons.length} buttons and ${sliderDots.length} dots`);
+  
+  // Set up state
+  const state = {
+    activeIndex: 0,
+    observer: null,
+    eventHandlers: []
+  };
+  
+  // Create a force sync function to ensure buttons and dots are in sync
+  function syncActiveState(index) {
+    console.log(`Service Slider: Syncing state to index ${index}`);
     
-    console.log(`Service Slider: Found ${sliderDots.length} slider dots`);
-    
-    // Store state on element to avoid global variable conflicts
-    const state = {
-      activeIndex: 0,
-      isInitialized: false,
-      observer: null
-    };
-    
-    // Keep a reference to our state
-    sliderNav.serviceSliderState = state;
-    
-    // More aggressive approach to add active class
-    function setActiveButton(index) {
-      console.log(`Service Slider: Setting active button to index ${index}`);
-      
-      try {
-        // Remove active class from all buttons using multiple approaches
-        buttons.forEach((btn) => {
-          btn.classList.remove("active");
-          btn.classList.remove("is-active");
-          btn.classList.remove("w-active");
-          
-          // Also try setting the attribute directly
-          btn.setAttribute("aria-selected", "false");
-          
-          // If there's a child element that might contain the active state
-          const inner = btn.querySelector(".is-active, .active");
-          if (inner) inner.classList.remove("active", "is-active");
-        });
-        
-        // Add active class to the target button using multiple approaches
-        if (buttons[index]) {
-          const btn = buttons[index];
-          
-          // Try multiple class names
-          btn.classList.add("active");
-          
-          // Also try setting the attribute
-          btn.setAttribute("aria-selected", "true");
-          
-          // If there's a child element that should get the active state
-          const inner = btn.querySelector("[data-active-target]");
-          if (inner) inner.classList.add("active");
-          
-          state.activeIndex = index;
-          console.log(`Service Slider: Button ${index} activated`);
-        }
-      } catch (e) {
-        console.error("Service Slider: Error setting active button:", e);
-      }
-    }
-    
-    // More robust click handler for the slider dots
-    function clickDot(index) {
-      console.log(`Service Slider: Clicking dot at index ${index}`);
-      
-      try {
-        if (sliderDots[index]) {
-          // First try the click event
-          sliderDots[index].click();
-          
-          // As a fallback, try to set the w-active class directly
-          sliderDots.forEach(dot => dot.classList.remove("w-active"));
-          sliderDots[index].classList.add("w-active");
-          
-          // Try to find and trigger the actual Webflow slider
-          const slider = document.querySelector(".service-overview-slider .w-slider, .w-slider");
-          if (slider && window.Webflow && window.Webflow.require) {
-            try {
-              // This attempts to use Webflow's internal slider API
-              const sliderApi = window.Webflow.require('slider');
-              if (sliderApi && typeof sliderApi.ready === 'function') {
-                sliderApi.ready(function() {
-                  // Find the slider element in Webflow's collection
-                  const sliderInstance = slider.querySelector('.w-slider-mask');
-                  if (sliderInstance && sliderInstance.parentElement._component) {
-                    // Use Webflow's internal method to go to slide
-                    sliderInstance.parentElement._component.goTo(index);
-                    console.log("Service Slider: Used Webflow API to change slide");
-                  }
-                });
-              }
-            } catch (err) {
-              console.warn("Service Slider: Could not use Webflow API:", err);
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Service Slider: Error clicking dot:", e);
-      }
-    }
-    
-    // Function to activate a button and its corresponding slide
-    function activateButton(index) {
-      console.log(`Service Slider: Activating button ${index}`);
-      
-      // Store the active index
-      state.activeIndex = index;
-      
-      // First update button states immediately
-      setActiveButton(index);
-      
-      // Then click the slider dot (with a slight delay to ensure UI is updated)
-      setTimeout(() => clickDot(index), 50);
-    }
-    
-    // Better implementation of observer with error handling
-    function setupObserver() {
-      try {
-        // Clean up any existing observer
-        if (state.observer) {
-          state.observer.disconnect();
-        }
-        
-        state.observer = new MutationObserver((mutations) => {
-          try {
-            // Look for class changes on slider dots
-            const dotClassChange = mutations.find(
-              m => m.type === "attributes" && 
-                   m.attributeName === "class" && 
-                   m.target.classList.contains("w-slider-dot")
-            );
-            
-            if (dotClassChange) {
-              // Find which dot is now active
-              const activeDotIndex = Array.from(sliderDots).findIndex(
-                dot => dot.classList.contains("w-active")
-              );
-              
-              console.log(`Service Slider: Detected dot change, active index is now ${activeDotIndex}`);
-              
-              if (activeDotIndex !== -1 && activeDotIndex !== state.activeIndex) {
-                // Update button UI, but don't click again to avoid loops
-                setActiveButton(activeDotIndex);
-              }
-            }
-          } catch (e) {
-            console.error("Service Slider: Error in mutation observer:", e);
-          }
-        });
-        
-        // Observe the entire slider for changes
-        state.observer.observe(sliderNav.closest(".w-slider") || sliderNav, {
-          attributes: true,
-          attributeFilter: ["class"],
-          subtree: true,
-          childList: true
-        });
-        
-        console.log("Service Slider: Mutation observer set up");
-      } catch (e) {
-        console.error("Service Slider: Error setting up observer:", e);
-      }
-    }
-    
-    // Set up event listeners for buttons
-    buttons.forEach((button, index) => {
-      try {
-        // Create a proper handler that's bound to the button
-        const handleClick = function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          console.log(`Service Slider: Button ${index} clicked`);
-          activateButton(index);
-        };
-        
-        // Store the handler on the button element to avoid duplicate listeners
-        button._sliderHandler = button._sliderHandler || handleClick;
-        
-        // Clean up existing listeners
-        button.removeEventListener("click", button._sliderHandler);
-        button.removeEventListener("touchend", button._sliderHandler);
-        
-        // Add our handlers
-        button.addEventListener("click", button._sliderHandler);
-        button.addEventListener("touchend", button._sliderHandler);
-        
-        // Also add data-index attribute for debugging
-        button.setAttribute("data-button-index", index);
-        
-        console.log(`Service Slider: Event listeners added to button ${index}`);
-      } catch (e) {
-        console.error(`Service Slider: Error setting up button ${index}:`, e);
+    // Update buttons
+    buttons.forEach((btn, i) => {
+      if (i === index) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
       }
     });
     
-    // Set up the observer
-    setupObserver();
+    // Update dots
+    sliderDots.forEach((dot, i) => {
+      if (i === index) {
+        dot.classList.add("w-active");
+      } else {
+        dot.classList.remove("w-active");
+      }
+    });
     
-    // Initialize the first button if needed
-    if (!state.isInitialized) {
-      console.log("Service Slider: First initialization");
-      
-      // For first init, use a different timing approach
-      setTimeout(() => {
-        // Check which dot is already active (if any)
-        const activeIndex = Array.from(sliderDots).findIndex(
-          dot => dot.classList.contains("w-active")
-        );
-        
-        // Use the detected active index or default to 0
-        const initialIndex = activeIndex !== -1 ? activeIndex : 0;
-        console.log(`Service Slider: Initial active index is ${initialIndex}`);
-        
-        activateButton(initialIndex);
-        state.isInitialized = true;
-      }, 300); // Longer timeout for initial setup
+    state.activeIndex = index;
+  }
+  
+  // Function to programmatically activate slide
+  function activateSlide(index) {
+    console.log(`Service Slider: Activating slide ${index}`);
+    
+    if (index < 0 || index >= sliderDots.length) {
+      console.warn(`Service Slider: Invalid index ${index}`);
+      return;
     }
     
-    // Re-sync on window resize
-    const handleResize = () => {
-      console.log("Service Slider: Window resized, updating active state");
-      setActiveButton(state.activeIndex);
+    // First sync the visual state
+    syncActiveState(index);
+    
+    // Then trigger the actual slide change
+    if (sliderDots[index]) {
+      // Try to click the dot (normal approach)
+      sliderDots[index].click();
+      
+      // Fallback: Try to trigger Webflow's slider directly
+      tryWebflowFallback(sliderContainer, index);
+    }
+  }
+  
+  // Set up button click handlers
+  buttons.forEach((button, index) => {
+    const clickHandler = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      activateSlide(index);
     };
     
-    // Clean up old handler if it exists
-    window.removeEventListener("resize", sliderNav._resizeHandler);
+    // Add handler
+    button.addEventListener("click", clickHandler);
+    button.addEventListener("touchend", clickHandler, { passive: false });
     
-    // Store and add the new handler
-    sliderNav._resizeHandler = handleResize;
-    window.addEventListener("resize", sliderNav._resizeHandler);
-    
-    // Also initialize on Webflow's built-in events if available
+    // Store for cleanup
+    state.eventHandlers.push({ element: button, type: "click", handler: clickHandler });
+    state.eventHandlers.push({ element: button, type: "touchend", handler: clickHandler });
+  });
+  
+  // Set up mutation observer to monitor slider state changes
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      if (mutation.type === "attributes" && 
+          mutation.attributeName === "class" && 
+          mutation.target.classList.contains("w-slider-dot")) {
+          
+        // Find which dot is active
+        const newActiveIndex = Array.from(sliderDots).findIndex(dot => 
+          dot.classList.contains("w-active")
+        );
+        
+        if (newActiveIndex !== -1 && newActiveIndex !== state.activeIndex) {
+          console.log(`Service Slider: Detected dot change to ${newActiveIndex}`);
+          syncActiveState(newActiveIndex);
+        }
+      }
+    }
+  });
+  
+  // Start observing
+  observer.observe(sliderNav, {
+    attributes: true,
+    attributeFilter: ["class"],
+    subtree: true
+  });
+  
+  state.observer = observer;
+  
+  // Initialize to the first slide (or currently active slide)
+  const initialActiveIndex = Array.from(sliderDots).findIndex(dot => 
+    dot.classList.contains("w-active")
+  );
+  
+  setTimeout(() => {
+    syncActiveState(initialActiveIndex !== -1 ? initialActiveIndex : 0);
+  }, 100);
+  
+  // Add resize handler
+  const resizeHandler = () => {
+    syncActiveState(state.activeIndex);
+  };
+  
+  window.addEventListener("resize", resizeHandler);
+  state.eventHandlers.push({ element: window, type: "resize", handler: resizeHandler });
+  
+  // Return instance with cleanup method
+  return {
+    activateSlide,
+    getCurrentIndex: () => state.activeIndex,
+    cleanup: () => {
+      // Remove all event handlers
+      state.eventHandlers.forEach(({ element, type, handler }) => {
+        element.removeEventListener(type, handler);
+      });
+      
+      // Disconnect observer
+      if (state.observer) {
+        state.observer.disconnect();
+      }
+      
+      console.log("Service Slider: Instance cleaned up");
+    }
+  };
+}
+
+// If we can't use the dots directly, try using Webflow's internal API
+function tryWebflowFallback(sliderContainer, index) {
+  try {
+    // Attempt to access the Webflow slider API
     if (window.Webflow && Webflow.require) {
-      const ix2 = Webflow.require('ix2');
-      if (ix2 && ix2.events && ix2.events.on) {
-        ix2.events.on('headerLoaded', () => {
-          console.log("Service Slider: Reinitializing after IX2 header loaded");
-          setTimeout(() => activateButton(state.activeIndex), 200);
+      const slider = Webflow.require('slider');
+      if (slider && typeof slider.ready === 'function') {
+        slider.ready(() => {
+          // Find the DOM element that Webflow has attached the slider to
+          const mask = sliderContainer.querySelector('.w-slider-mask');
+          if (mask && mask.parentElement._component) {
+            // Use Webflow's internal goTo method
+            mask.parentElement._component.goTo(index);
+            console.log(`Service Slider: Successfully used Webflow API to go to slide ${index}`);
+            return true;
+          }
         });
       }
     }
-    
-    return {
-      // Expose methods for external control
-      goToSlide: activateButton,
-      getCurrentIndex: () => state.activeIndex,
-      refresh: () => {
-        setupObserver();
-        setActiveButton(state.activeIndex);
-      }
-    };
+  } catch (e) {
+    console.warn("Service Slider: Webflow API fallback failed:", e);
   }
+  return false;
+}
+
+// When we need to use Webflow's slider API directly
+function createWebflowApiInstance(buttons, sliderContainer, slideCount) {
+  console.log("Service Slider: Creating Webflow API instance");
+  
+  const state = {
+    activeIndex: 0,
+    eventHandlers: []
+  };
+  
+  // Function to set active button
+  function syncActiveButton(index) {
+    buttons.forEach((btn, i) => {
+      if (i === index) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
+      }
+    });
+    state.activeIndex = index;
+  }
+  
+  // Function to change slide
+  function activateSlide(index) {
+    if (index < 0 || index >= slideCount) {
+      console.warn(`Service Slider: Invalid index ${index}`);
+      return;
+    }
+    
+    console.log(`Service Slider: Activating slide ${index} via Webflow API`);
+    
+    // Update button state
+    syncActiveButton(index);
+    
+    // Try to use Webflow's slider API
+    if (window.Webflow && Webflow.require) {
+      const slider = Webflow.require('slider');
+      if (slider && typeof slider.ready === 'function') {
+        slider.ready(() => {
+          // Try to find the slider component
+          const mask = sliderContainer.querySelector('.w-slider-mask');
+          if (mask && mask.parentElement._component) {
+            // Use Webflow's internal goTo method
+            mask.parentElement._component.goTo(index);
+            console.log(`Service Slider: Used Webflow API for slide ${index}`);
+          } else {
+            // Fallback: manually trigger click events on the arrows
+            const arrows = sliderContainer.querySelectorAll('.w-slider-arrow-left, .w-slider-arrow-right');
+            if (arrows.length) {
+              // Calculate how many clicks we need in which direction
+              const direction = index > state.activeIndex ? 'right' : 'left';
+              const clicks = Math.abs(index - state.activeIndex);
+              
+              const arrow = direction === 'right' 
+                ? sliderContainer.querySelector('.w-slider-arrow-right')
+                : sliderContainer.querySelector('.w-slider-arrow-left');
+              
+              if (arrow) {
+                console.log(`Service Slider: Using arrow clicks (${direction}, ${clicks} times)`);
+                
+                // Execute clicks with delay
+                for (let i = 0; i < clicks; i++) {
+                  setTimeout(() => {
+                    arrow.click();
+                  }, i * 100);
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+  }
+  
+  // Set up button handlers
+  buttons.forEach((button, index) => {
+    const clickHandler = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      activateSlide(index);
+    };
+    
+    button.addEventListener("click", clickHandler);
+    button.addEventListener("touchend", clickHandler, { passive: false });
+    
+    state.eventHandlers.push({ element: button, type: "click", handler: clickHandler });
+    state.eventHandlers.push({ element: button, type: "touchend", handler: clickHandler });
+  });
+  
+  // Initialize state
+  setTimeout(() => {
+    syncActiveButton(0);
+  }, 100);
+  
+  // Return instance
+  return {
+    activateSlide,
+    getCurrentIndex: () => state.activeIndex,
+    cleanup: () => {
+      state.eventHandlers.forEach(({ element, type, handler }) => {
+        element.removeEventListener(type, handler);
+      });
+      console.log("Service Slider: Webflow API instance cleaned up");
+    }
+  };
+}
+
+// IMPORTANT: Call this function when a page transition occurs with Swup
+export function reinitializeServiceSlider() {
+  console.log("Service Slider: Reinitializing after page transition");
+  setTimeout(() => {
+    initializeServiceSlider();
+  }, 100); // Small delay to ensure DOM is ready
+}
