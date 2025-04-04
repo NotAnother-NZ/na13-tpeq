@@ -3,7 +3,7 @@ import { initializeSwup, ensureOverlayElement } from './modules/swup.js';
 import { initializeLocomotive } from './modules/locomotive.js';
 
 // UI components
-import { initializeServiceSlider } from './modules/service-slider.js';
+// import { initializeServiceSlider } from './modules/service-slider.js';
 import { initializeNavigationMenu } from './modules/nav.js';
 import { initializeFooterMenuHover } from './modules/footer-menu.js';
 import { initializeNewsletterForm } from './modules/newsletter-form.js';
@@ -38,7 +38,7 @@ if (window.globalInitialized) {
     initializeInsightsSorting();
     initializeFooterMenuHover();
     initializeProfilePlaceholders();
-    initializeServiceSlider();
+    // initializeServiceSlider();
   }
 
   // Initialize on document load
@@ -53,6 +53,6 @@ if (window.globalInitialized) {
   window.addEventListener("load", function() {
     initializeFooterMenuHover();
     initializeProfilePlaceholders();
-    initializeServiceSlider();
+    // initializeServiceSlider();
   });
 }
