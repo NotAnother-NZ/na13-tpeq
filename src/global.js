@@ -3,7 +3,7 @@ import { initializeSwup, ensureOverlayElement } from './modules/swup.js';
 import { initializeLocomotive } from './modules/locomotive.js';
 
 // UI components
-import { initializeServiceSlider, reinitializeServiceSlider } from './modules/service-slider.js';
+import { initializeServiceSlider } from './modules/service-slider.js';
 import { initializeNavigationMenu } from './modules/nav.js';
 import { initializeFooterMenuHover } from './modules/footer-menu.js';
 import { initializeNewsletterForm } from './modules/newsletter-form.js';
@@ -26,7 +26,6 @@ if (window.globalInitialized) {
 
   // Initialize all modules
   function initializeAllModules() {
-    console.log("Initializing all modules");
     initializeLocomotive();
     initializeQuicklink();
     setupGoToTopButton();
@@ -39,20 +38,13 @@ if (window.globalInitialized) {
     initializeInsightsSorting();
     initializeFooterMenuHover();
     initializeProfilePlaceholders();
-    
-    // Note: service slider is explicitly called here to ensure proper initialization
-    reinitializeServiceSlider();
-  }
-
-  // Initialize Swup with callback to reinitialize modules
-  function setupSwup() {
-    ensureOverlayElement();
-    return initializeSwup(initializeAllModules);
+    initializeServiceSlider();
   }
 
   // Initialize on document load
   document.addEventListener("DOMContentLoaded", function() {
-    setupSwup();
+    ensureOverlayElement();
+    initializeSwup(initializeAllModules);
     initializeAllModules();
     loadQuicklink();
   });
