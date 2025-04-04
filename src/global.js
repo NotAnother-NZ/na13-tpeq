@@ -1,6 +1,22 @@
-// Direct imports of all modules
-import { initializeCopyright } from './modules/copyright.js';
-import { initializeDateZero } from './modules/date-zero.js';
+// Core functionality
+import { initializeSwup, ensureOverlayElement } from './modules/swup.js';
+import { initializeLocomotive } from './modules/locomotive.js';
+
+// UI components
+import { initializeServiceSlider } from './modules/service-slider.js';
+import { initializeNavigationMenu } from './modules/nav.js';
+import { initializeFooterMenuHover } from './modules/footer-menu.js';
+import { initializeNewsletterForm } from './modules/newsletter-form.js';
+import { initializeContactForm } from './modules/contact-form.js';
+import { initializeInsightsSorting } from './modules/insights-sorting.js';
+import { initializeProfilePlaceholders } from './modules/profile-placeholders.js';
+import { setupGoToTopButton } from './modules/go-to-top.js';
+
+// Utilities
+import { loadQuicklink, initializeQuicklink } from './modules/quicklink.js';
+import { runCopyrightYearScript } from './modules/copyright.js';
+import { runDateZeroScript } from './modules/date-zero.js';
+import { runNotAnotherScript } from './modules/by-na.js';
 
 // Prevent multiple initializations
 if (window.globalInitialized) {
@@ -8,81 +24,35 @@ if (window.globalInitialized) {
 } else {
   window.globalInitialized = true;
 
-  // Common variables
-  let scrollInstance = null;
-  let swupInstance = null;
-  let animationStartTime = 0;
-  const ANIMATION_DURATION = 500;
-
-  // Initialize all modules on content replacement
+  // Initialize all modules
   function initializeAllModules() {
-    // Direct calls to all module initializers
-    initializeCopyright();
-    initializeDateZero();
-  }
-
-  // Initialize Swup
-  function initializeSwup() {
-    // Your existing Swup initialization code
-    const overlay = document.createElement("div");
-    overlay.id = "swup-overlay";
-    document.body.appendChild(overlay);
-
-    swupInstance = new Swup({
-      containers: ["#swup"],
-      cache: true,
-      animationSelector: '[class*="transition-"]',
-      plugins: [
-        new SwupHeadPlugin({
-          persistTags: "style[data-swup-persist], script[data-swup-persist]",
-          awaitAssets: true,
-        }),
-        new SwupScriptsPlugin({ head: true, body: true, optin: true }),
-      ],
-      animateHistoryBrowsing: true,
-    });
-
-    swupInstance.hooks.on("animation:out:start", () => {
-      if (scrollInstance) {
-        scrollInstance.destroy();
-        scrollInstance = null;
-      }
-      animationStartTime = Date.now();
-      document.documentElement.classList.add("is-animating");
-      document.body.style.pointerEvents = "none";
-    });
-
-    swupInstance.hooks.on("content:replace", () => {
-      let elapsed = Date.now() - animationStartTime;
-      let remaining = ANIMATION_DURATION - elapsed;
-      if (remaining < 0) remaining = 0;
-
-      setTimeout(() => {
-        // Run all module initializers
-        initializeAllModules();
-
-        // Reinitialize Webflow interactions if needed
-        if (window.Webflow && Webflow.require) {
-          Webflow.require("ix2").init();
-        }
-
-        document.documentElement.classList.remove("is-animating");
-        document.body.style.pointerEvents = "";
-      }, remaining);
-    });
-
-    return swupInstance;
+    initializeLocomotive();
+    initializeQuicklink();
+    setupGoToTopButton();
+    runCopyrightYearScript();
+    runDateZeroScript();
+    runNotAnotherScript();
+    initializeNavigationMenu();
+    initializeNewsletterForm();
+    initializeContactForm();
+    initializeInsightsSorting();
+    initializeFooterMenuHover();
+    initializeProfilePlaceholders();
+    initializeServiceSlider();
   }
 
   // Initialize on document load
-  document.addEventListener("DOMContentLoaded", function () {
-    initializeSwup();
+  document.addEventListener("DOMContentLoaded", function() {
+    ensureOverlayElement();
+    initializeSwup(initializeAllModules);
     initializeAllModules();
+    loadQuicklink();
   });
 
-  // Also initialize on load for reliability
-  window.addEventListener("load", function () {
-    // Some modules may need window.load event
-    // No automatic detection here - add manually if needed
+  // Also initialize certain modules on window load for reliability
+  window.addEventListener("load", function() {
+    initializeFooterMenuHover();
+    initializeProfilePlaceholders();
+    initializeServiceSlider();
   });
 }

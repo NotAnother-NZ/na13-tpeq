@@ -1,5 +1,5 @@
-// Add proper export
-export function initializeDateZero() {
+// Module for formatting dates with leading zeros
+export function runDateZeroScript() {
   const nodes = document.querySelectorAll("[data-dt-date-zero]");
   nodes.forEach((node) => {
     const original = node.textContent.trim();
@@ -12,11 +12,3 @@ export function initializeDateZero() {
     }
   });
 }
-
-// Keep original event listener for standalone use
-document.addEventListener("DOMContentLoaded", function() {
-  // Only run if not being imported
-  if (typeof module === 'undefined') {
-    initializeDateZero();
-  }
-});
