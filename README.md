@@ -1,51 +1,38 @@
-# Feedback Template
+# na13-tpeq
 
-## Description
-This repository contains a feedback template to integrate with Marker.io for collecting user feedback on your Webflow projects.
+This repository contains the source code for the TPEQ project by Not Another™
 
-<br>
 
-## Usage
+## License
 
-### Installation
-To integrate the feedback template with your Webflow project, follow these steps:
-
-1. Copy the provided code snippet.
-
-2. Paste the code snippet into the custom code section of your Webflow site settings. Ensure that you place it inside the `<head>` tag.
-
-```html
-<script>
-if (window.location.hostname.includes("webflow.io")) {
-  window.markerConfig = {
-    project: 'YOUR PROJECT ID',
-    source: 'snippet'
-  };
-
-!function(e,r,a){if(!e.__Marker){e.__Marker={};var t=[],n={__cs:t};["show","hide","isVisible","capture","cancelCapture","unload","reload","isExtensionInstalled","setReporter","setCustomData","on","off"].forEach(function(e){n[e]=function(){var r=Array.prototype.slice.call(arguments);r.unshift(e),t.push(r)}}),e.Marker=n;var s=r.createElement("script");s.async=1,s.src="https://edge.marker.io/latest/shim.js";var i=r.getElementsByTagName("script")[0];i.parentNode.insertBefore(s,i)}}(window,document);
-}
-</script>
 ```
+Copyright (c) [2025] Not Another™ (https://www.na.studio)
 
-3. Replace `'YOUR PROJECT ID'` in the code snippet with your actual project ID. 
+This code is part of the TPEQ project (https://www.tpeq.co/).
 
-OR
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including the rights to use, copy, modify,
+merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+to permit persons to whom the Software is furnished to do so, subject to the
+following conditions:
 
-4. Open your project on Marker.io and navigate to the installation page (`/widget/installation/snippet`). Copy the code provided by Marker.io and nest it within the conditional statement `if (window.location.hostname.includes("webflow.io")) { }`.
+The above copyright notice and this permission notice shall be preserved in
+all copies or substantial portions of the Software.
 
-<br>
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+OF THE POSSIBILITY OF SUCH DAMAGE.
 
-### Usage Instructions
-Once the code snippet is added to your Webflow project, the feedback template will be enabled. Users can provide feedback by clicking on the feedback button and following the instructions provided.
+**IMPORTANT NOTICE**
 
-<br>
-
-### Project ID
-You can find your project ID in the URL after opening the respective project on Marker.io.
-
-For example:
-```html
-https://app.marker.io/projects/661833d3f3f7dt137fa633a9933/feedback/all
+You may not remove or modify any copyright notices or authorship attributions
+(i.e., "written by" or "made by" statements) from this code.
 ```
-Here, `661833d3f3f7dt137fa633a9933` is the project ID.
-
