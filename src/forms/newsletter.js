@@ -1,7 +1,8 @@
-// Module for newsletter form functionality
-export function initializeNewsletterForm() {
+// newsletter.js - Newsletter form functionality
+window.App = window.App || {};
+window.App.Newsletter = {
+  initialize: function () {
     if (!document.querySelector("#newsletter-form")) return;
-    
     if (sessionStorage.getItem("newsletterSubmitted") === "true") {
       if (typeof requestIdleCallback !== "undefined") {
         requestIdleCallback(() => {
@@ -23,7 +24,6 @@ export function initializeNewsletterForm() {
         }, 0);
       }
     }
-    
     const submitProxy = document.getElementById("newsletter-submit-proxy");
     if (submitProxy) {
       submitProxy.addEventListener("click", function () {
@@ -40,7 +40,6 @@ export function initializeNewsletterForm() {
         }
       });
     }
-    
     const observer = new MutationObserver(function (mutationsList) {
       for (const mutation of mutationsList) {
         if (
@@ -56,7 +55,6 @@ export function initializeNewsletterForm() {
         }
       }
     });
-    
     const successEl = document.querySelector(".global-form-success.newsletter");
     if (successEl) {
       observer.observe(successEl, {
@@ -64,4 +62,5 @@ export function initializeNewsletterForm() {
         attributeFilter: ["style"],
       });
     }
-  }
+  },
+};

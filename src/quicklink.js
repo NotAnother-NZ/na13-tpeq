@@ -1,5 +1,7 @@
-// Quicklink module for prefetching links
-export function initializeQuicklink() {
+// quicklink.js - Prefetching
+window.App = window.App || {};
+window.App.Quicklink = {
+  initialize: function () {
     if (typeof quicklink !== "undefined") {
       quicklink.listen({
         origins: [location.hostname],
@@ -23,18 +25,19 @@ export function initializeQuicklink() {
         el: document.body,
       });
     }
-  }
-  
-  export function loadQuicklink() {
+  },
+
+  loadScript: function () {
     if (typeof quicklink !== "undefined") {
-      initializeQuicklink();
+      this.initialize();
       return;
     }
-    
+
     var script = document.createElement("script");
     script.src = "https://unpkg.com/quicklink@2.3.0/dist/quicklink.umd.js";
     script.async = true;
-    script.onload = initializeQuicklink;
+    script.onload = this.initialize.bind(this);
     script.onerror = function () {};
     document.head.appendChild(script);
-  }
+  },
+};

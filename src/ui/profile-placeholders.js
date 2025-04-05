@@ -1,19 +1,17 @@
-// Module for handling profile avatar placeholders
-export function initializeProfilePlaceholders() {
+// profile-placeholders.js - Profile placeholder images
+window.App = window.App || {};
+window.App.ProfilePlaceholders = {
+  initialize: function () {
     const nodes = document.querySelectorAll("[data-dt-placeholder-profile]");
-    
     if (nodes.length > 0) {
       function applyProfilePlaceholders() {
         const updates = [];
-        
         nodes.forEach((div) => {
           const name = div.getAttribute("data-dt-placeholder-profile");
           if (!name) return;
-          
           const type =
             parseInt(div.getAttribute("data-dt-placeholder-profile-type")) || 2;
           let style = "glass";
-          
           switch (type) {
             case 1:
               style = "initials";
@@ -31,12 +29,10 @@ export function initializeProfilePlaceholders() {
               style = "bottts-neutral";
               break;
           }
-          
           const seed = encodeURIComponent(name.trim());
           const url = `https://api.dicebear.com/9.x/${style}/svg?seed=${seed}`;
           updates.push({ div, url });
         });
-        
         for (let i = 0; i < updates.length; i++) {
           const { div, url } = updates[i];
           div.style.backgroundImage = `url("${url}")`;
@@ -45,11 +41,11 @@ export function initializeProfilePlaceholders() {
           div.style.backgroundRepeat = "no-repeat";
         }
       }
-      
       if (typeof requestIdleCallback !== "undefined") {
         requestIdleCallback(applyProfilePlaceholders, { timeout: 500 });
       } else {
         setTimeout(applyProfilePlaceholders, 0);
       }
     }
-  }
+  },
+};

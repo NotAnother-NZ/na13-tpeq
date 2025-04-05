@@ -1,8 +1,9 @@
-// Module for Not Another Studio attribution links
-export function runNotAnotherScript() {
+// not-another.js - Not Another script
+window.App = window.App || {};
+window.App.NotAnother = {
+  initialize: function () {
     let origin = encodeURIComponent(window.location.origin);
     let emojis = ["🚀", "🌏", "✨", "🇳🇿", "⚫️", "🖤"];
-    
     document.querySelectorAll("[data-not-another]").forEach((link) => {
       let campaign = link.getAttribute("data-not-another") || "client-footer";
       if (
@@ -17,7 +18,6 @@ export function runNotAnotherScript() {
         link.target = "_blank";
         link.rel = "noopener noreferrer";
       }
-      
       if (!link.querySelector(".not-another-emoji")) {
         let emojiSpan = document.createElement("span");
         emojiSpan.className = "not-another-emoji";
@@ -27,12 +27,10 @@ export function runNotAnotherScript() {
         emojiSpan.style.transition = "opacity 0.2s ease, transform 0.2s ease";
         link.appendChild(emojiSpan);
       }
-      
       let emojiSpan = link.querySelector(".not-another-emoji");
       let animationFrame = null;
       let isAnimating = false;
       let hasLeft = false;
-      
       const animateEmoji = () => {
         if (isAnimating) return;
         isAnimating = true;
@@ -61,7 +59,6 @@ export function runNotAnotherScript() {
         };
         animationFrame = requestAnimationFrame(animate);
       };
-      
       link.addEventListener("mouseenter", () => {
         hasLeft = false;
         let randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
@@ -80,7 +77,6 @@ export function runNotAnotherScript() {
           }, 0);
         }
       });
-      
       link.addEventListener("mouseleave", () => {
         hasLeft = true;
         if (animationFrame) {
@@ -101,4 +97,5 @@ export function runNotAnotherScript() {
         }
       });
     });
-  }
+  },
+};

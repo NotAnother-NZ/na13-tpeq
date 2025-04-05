@@ -1,0 +1,15 @@
+## Load order:
+- core.js
+-  swup.js
+-  locomotive-scroll.js
+-  quicklink.js
+-  utils.js
+-  ui/navigation.js
+-  ui/footer.js
+-  ui/profile-placeholders.js
+-  ui/service-slider.js
+-  ui/not-another.js
+-  forms/newsletter.js
+-  forms/contact.js
+-  content/insights-sorting.js
+-  main.js

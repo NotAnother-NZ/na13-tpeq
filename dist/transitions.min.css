@@ -1,0 +1,33 @@
+/*
+Copyright (c) [2025] Not Another™ (https://www.na.studio)
+
+This code is part of the TPEQ project (https://www.tpeq.co/).
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including the rights to use, copy, modify,
+merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+to permit persons to whom the Software is furnished to do so, subject to the
+following conditions:
+
+The above copyright notice and this permission notice shall be preserved in
+all copies or substantial portions of the Software.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+OF THE POSSIBILITY OF SUCH DAMAGE.
+
+**IMPORTANT NOTICE**
+
+You may not remove or modify any copyright notices or authorship attributions
+(i.e., "written by" or "made by" statements) from this code.
+*/
+
+html.is-changing .transition-fade{opacity:0}html.is-animating .transition-fade{opacity:0}.transition-fade{opacity:1;transition:opacity .6s}#swup-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background-color:#222;z-index:9999;pointer-events:none;transform:translateY(-100%);transition:transform .65s cubic-bezier(.76,0,.24,1)}html.is-animating #swup-overlay{transform:translateY(0)}#swup-overlay.is-leaving{transform:translateY(100%)!important;transition-delay:.25s}html.is-initial-loading #swup{opacity:0}html.is-initial-loading #swup-overlay{transform:translateY(0)}
