@@ -1,10 +1,8 @@
-// service-slider.js - With Webflow reinitialization
+// service-slider.js - With fade transitions and dynamic height calculation
 window.App = window.App || {};
 window.App.ServiceSlider = {
   debug: true,
-  checkInterval: null,
-  reinitAttempts: 0,
-  maxReinitAttempts: 5,
+  resizeTimeout: null,
 
   log: function (...args) {
     if (this.debug) {
@@ -12,230 +10,228 @@ window.App.ServiceSlider = {
     }
   },
 
-  reinitializeWebflow: function () {
-    this.log("Attempting to reinitialize Webflow...");
+  calculateAndSetSliderHeight: function () {
+    const sliderElement = document.querySelector(".service-overview-slider");
+    const contentPanels = document.querySelectorAll(
+      ".service-overview-slider-content"
+    );
 
-    if (typeof Webflow === "undefined") {
-      this.log("Webflow object not found!");
-      return false;
+    if (!sliderElement || !contentPanels.length) {
+      return;
     }
 
-    try {
-      // Reset Webflow IX2
-      if (Webflow.require("ix2")) {
-        this.log("Reinitializing Webflow IX2");
-        Webflow.require("ix2").init();
+    this.log("Calculating slider height");
+
+    // Store original hide states
+    const originalHideStates = Array.from(contentPanels).map((panel) =>
+      panel.classList.contains("hide")
+    );
+
+    // Temporarily show all panels
+    contentPanels.forEach((panel) => {
+      panel.classList.remove("hide");
+      panel.style.opacity = "0";
+      panel.style.visibility = "hidden";
+    });
+
+    // Calculate heights including margins
+    const outerHeights = Array.from(contentPanels).map((panel) => {
+      const style = window.getComputedStyle(panel);
+      const marginTop = parseFloat(style.marginTop) || 0;
+      const marginBottom = parseFloat(style.marginBottom) || 0;
+      return panel.offsetHeight + marginTop + marginBottom;
+    });
+
+    // Get maximum height and round up
+    let maxHeight = Math.max(...outerHeights);
+    maxHeight = Math.ceil(maxHeight);
+
+    this.log(`Setting slider height to ${maxHeight}px`);
+
+    // Set the height on the slider element
+    sliderElement.style.height = maxHeight + "px";
+
+    // Restore original visibility states
+    contentPanels.forEach((panel, index) => {
+      if (originalHideStates[index]) {
+        panel.classList.add("hide");
+      } else {
+        panel.style.opacity = "1";
+        panel.style.visibility = "visible";
       }
+    });
 
-      // Force Webflow to detect all sliders and initialize them
-      if (Webflow.require("slider")) {
-        this.log("Reinitializing Webflow sliders");
-        const slider = Webflow.require("slider");
-
-        // Try direct reinitialization if available
-        if (typeof slider.ready === "function") {
-          slider.ready();
-        }
-
-        // Alternative method - destroy and reinitialize
-        if (
-          typeof slider.destroy === "function" &&
-          typeof slider.preview === "function"
-        ) {
-          slider.destroy();
-          slider.preview();
-        }
-      }
-
-      // Full page reinit as fallback
-      if (typeof Webflow.ready === "function") {
-        this.log("Reinitializing all Webflow components");
-        Webflow.ready();
-      }
-
-      return true;
-    } catch (e) {
-      this.log("Error reinitializing Webflow:", e);
-      return false;
+    // Update Locomotive Scroll if available
+    if (window.App.Core && window.App.Core.scrollInstance) {
+      setTimeout(() => {
+        window.App.Core.scrollInstance.update();
+        this.log("Updated Locomotive Scroll instance");
+      }, 100);
     }
   },
 
-  waitForSliderInitialization: function (callback) {
-    this.log("Waiting for slider to be fully initialized");
+  initialize: function () {
+    this.log("Initializing service slider");
 
-    // Clear any existing interval
-    if (this.checkInterval) {
-      clearInterval(this.checkInterval);
-    }
-
-    let checks = 0;
-    const maxChecks = 25; // 5 seconds max
-
-    this.checkInterval = setInterval(() => {
-      checks++;
-
-      // Look for the slider dots
-      const sliderNav = document.querySelector(
-        ".service-overview-slider .w-slider-nav"
-      );
-      const dots = sliderNav ? sliderNav.querySelectorAll(".w-slider-dot") : [];
-
-      this.log(`Check ${checks}: Found ${dots.length} slider dots`);
-
-      if (dots.length > 0) {
-        this.log("Slider dots found! Slider is fully initialized.");
-        clearInterval(this.checkInterval);
-        if (typeof callback === "function") {
-          callback(dots);
-        }
-      } else if (checks >= maxChecks) {
-        this.log("Giving up waiting for slider initialization");
-        clearInterval(this.checkInterval);
-
-        // Try reinitializing Webflow if we haven't reached max attempts
-        if (this.reinitAttempts < this.maxReinitAttempts) {
-          this.reinitAttempts++;
-          this.log(
-            `Attempt ${this.reinitAttempts}/${this.maxReinitAttempts} to force reinitialize Webflow`
-          );
-
-          // Force Webflow reinitialization
-          if (this.reinitializeWebflow()) {
-            // If successful, start waiting again
-            setTimeout(() => {
-              this.waitForSliderInitialization(callback);
-            }, 200);
-          }
-        }
-      }
-    }, 200);
-  },
-
-  setupCustomControls: function (sliderDots) {
-    this.log("Setting up custom button controls for slider");
-
+    // Get button elements
     const buttons = document.querySelectorAll(
       "#service-overview-button-wrapper .service-overview-button"
     );
 
-    if (!buttons.length) {
-      this.log("No custom buttons found");
+    // Get content panels
+    const contentPanels = document.querySelectorAll(
+      ".service-overview-slider .service-overview-slider-content"
+    );
+
+    this.log(
+      `Found ${buttons.length} buttons and ${contentPanels.length} content panels`
+    );
+
+    if (!buttons.length || !contentPanels.length) {
+      this.log(
+        "Required elements not found. Not on homepage or DOM not ready."
+      );
       return;
     }
 
-    // Clean up previous state
-    if (
-      window.serviceSliderState &&
-      typeof window.serviceSliderState.cleanupListeners === "function"
-    ) {
-      try {
-        window.serviceSliderState.cleanupListeners();
-      } catch (e) {
-        this.log("Error cleaning up:", e);
-      }
+    // First calculate and set the slider height
+    this.calculateAndSetSliderHeight();
+
+    // Set up window resize handler
+    if (window.serviceSliderState && window.serviceSliderState.resizeHandler) {
+      window.removeEventListener(
+        "resize",
+        window.serviceSliderState.resizeHandler
+      );
     }
 
-    // Create new state
+    const resizeHandler = () => {
+      // Debounce resize events
+      if (this.resizeTimeout) {
+        clearTimeout(this.resizeTimeout);
+      }
+
+      this.resizeTimeout = setTimeout(() => {
+        this.log("Window resized, recalculating slider height");
+        this.calculateAndSetSliderHeight();
+      }, 200);
+    };
+
+    window.addEventListener("resize", resizeHandler);
+
+    // Set up CSS transitions for fade effects if not already applied
+    contentPanels.forEach((panel) => {
+      // Only set these styles if not already set
+      if (panel.style.transition === "") {
+        panel.style.transition = "opacity 0.5s ease, visibility 0.5s ease";
+      }
+
+      // Make sure initially hidden panels have zero opacity
+      if (panel.classList.contains("hide")) {
+        panel.style.opacity = "0";
+        panel.style.visibility = "hidden";
+      } else {
+        panel.style.opacity = "1";
+        panel.style.visibility = "visible";
+      }
+    });
+
+    // Clear previous event listeners if they exist
+    if (window.serviceSliderState && window.serviceSliderState.eventListeners) {
+      this.log("Cleaning up previous listeners");
+      window.serviceSliderState.eventListeners.forEach((item) => {
+        if (
+          item &&
+          item.element &&
+          typeof item.element.removeEventListener === "function"
+        ) {
+          item.element.removeEventListener(item.type, item.handler);
+        }
+      });
+    }
+
+    // Create new state object
     window.serviceSliderState = {
       activeIndex: 0,
-      isInitialized: true,
-      observers: [],
+      isAnimating: false,
       eventListeners: [],
-      cleanupListeners: function () {
-        // Remove observers
-        if (Array.isArray(this.observers)) {
-          this.observers.forEach((observer) => {
-            if (observer && typeof observer.disconnect === "function") {
-              observer.disconnect();
-            }
-          });
-          this.observers = [];
-        }
-
-        // Remove event listeners
-        if (Array.isArray(this.eventListeners)) {
-          this.eventListeners.forEach((item) => {
-            if (
-              item &&
-              item.element &&
-              typeof item.element.removeEventListener === "function"
-            ) {
-              item.element.removeEventListener(item.type, item.handler);
-            }
-          });
-          this.eventListeners = [];
-        }
-      },
+      resizeHandler: resizeHandler,
     };
 
-    // Find which dot is currently active
-    const activeDotIndex = Array.from(sliderDots).findIndex((dot) =>
-      dot.classList.contains("w-active")
-    );
+    // Function to activate a specific panel with fade transition
+    const activatePanel = (index) => {
+      // Don't do anything if already animating or if it's the current panel
+      if (
+        window.serviceSliderState.isAnimating ||
+        window.serviceSliderState.activeIndex === index
+      ) {
+        return;
+      }
 
-    window.serviceSliderState.activeIndex =
-      activeDotIndex !== -1 ? activeDotIndex : 0;
+      this.log(`Activating panel ${index}`);
+      window.serviceSliderState.isAnimating = true;
 
-    // Update button states to match active dot
-    const updateButtonStates = (activeIndex) => {
-      buttons.forEach((btn, i) => {
-        if (i === activeIndex) {
-          btn.classList.add("active");
+      // Update button states immediately
+      buttons.forEach((button, i) => {
+        if (i === index) {
+          button.classList.add("active");
         } else {
-          btn.classList.remove("active");
+          button.classList.remove("active");
         }
       });
-      window.serviceSliderState.activeIndex = activeIndex;
+
+      // Get current and next panels
+      const currentPanel = contentPanels[window.serviceSliderState.activeIndex];
+      const nextPanel = contentPanels[index];
+
+      // Fade out current panel
+      if (currentPanel) {
+        currentPanel.style.opacity = "0";
+        currentPanel.style.visibility = "hidden";
+      }
+
+      // Prepare next panel for fade in (remove hide class but keep it invisible)
+      if (nextPanel) {
+        nextPanel.classList.remove("hide");
+        nextPanel.style.opacity = "0";
+        nextPanel.style.visibility = "hidden";
+
+        // Force a reflow to ensure transitions work
+        nextPanel.offsetHeight;
+
+        // Fade in next panel after a short delay
+        setTimeout(() => {
+          nextPanel.style.opacity = "1";
+          nextPanel.style.visibility = "visible";
+
+          // Add hide class to previous panel after transition
+          setTimeout(() => {
+            if (currentPanel) {
+              currentPanel.classList.add("hide");
+            }
+            window.serviceSliderState.activeIndex = index;
+            window.serviceSliderState.isAnimating = false;
+
+            // Update Locomotive Scroll after transition completes
+            if (window.App.Core && window.App.Core.scrollInstance) {
+              window.App.Core.scrollInstance.update();
+            }
+          }, 500);
+        }, 100);
+      } else {
+        // If next panel doesn't exist, just reset animation state
+        window.serviceSliderState.isAnimating = false;
+      }
     };
 
-    // Initialize button states
-    updateButtonStates(window.serviceSliderState.activeIndex);
-
-    // Watch for Webflow's internal slider changes
-    const sliderObserver = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (
-          mutation.type === "attributes" &&
-          mutation.attributeName === "class" &&
-          mutation.target.classList.contains("w-slider-dot")
-        ) {
-          const newActiveDotIndex = Array.from(sliderDots).findIndex((dot) =>
-            dot.classList.contains("w-active")
-          );
-
-          if (
-            newActiveDotIndex !== -1 &&
-            newActiveDotIndex !== window.serviceSliderState.activeIndex
-          ) {
-            this.log(`Webflow changed active slide to ${newActiveDotIndex}`);
-            updateButtonStates(newActiveDotIndex);
-          }
-        }
-      });
-    });
-
-    // Observe all dots for class changes
-    sliderDots.forEach((dot) => {
-      sliderObserver.observe(dot, { attributes: true });
-    });
-
-    window.serviceSliderState.observers.push(sliderObserver);
-
-    // Set up button click handlers
+    // Add click handlers to buttons
     buttons.forEach((button, index) => {
       const clickHandler = (e) => {
         e.preventDefault();
-        e.stopPropagation();
-
-        this.log(`Custom button ${index} clicked`);
-        updateButtonStates(index);
-
-        // Click the corresponding Webflow dot
-        if (sliderDots[index]) {
-          sliderDots[index].click();
-        }
+        activatePanel(index);
       };
 
+      // Add click event
       button.addEventListener("click", clickHandler);
       window.serviceSliderState.eventListeners.push({
         element: button,
@@ -243,7 +239,7 @@ window.App.ServiceSlider = {
         handler: clickHandler,
       });
 
-      // Touch support
+      // Add touch event for mobile
       button.addEventListener("touchend", clickHandler);
       window.serviceSliderState.eventListeners.push({
         element: button,
@@ -252,54 +248,47 @@ window.App.ServiceSlider = {
       });
     });
 
-    this.log("Custom controls setup complete");
-  },
+    // Initialize by determining which panel should be active
+    // Find which button is currently active
+    const activeButtonIndex = Array.from(buttons).findIndex((btn) =>
+      btn.classList.contains("active")
+    );
 
-  initialize: function () {
-    this.log("Initializing service slider");
-    this.reinitAttempts = 0;
+    // If we found an active button, use its index, otherwise default to 0
+    const initialIndex = activeButtonIndex !== -1 ? activeButtonIndex : 0;
 
-    const sliderElement = document.querySelector(".service-overview-slider");
-    if (!sliderElement) {
-      this.log("No slider found on page");
-      return;
-    }
-
-    // Wait for slider to be fully initialized, then set up our custom controls
-    this.waitForSliderInitialization((dots) => {
-      this.setupCustomControls(dots);
+    // Set initial state without animation
+    buttons.forEach((button, i) => {
+      if (i === initialIndex) {
+        button.classList.add("active");
+      } else {
+        button.classList.remove("active");
+      }
     });
+
+    contentPanels.forEach((panel, i) => {
+      if (i === initialIndex) {
+        panel.classList.remove("hide");
+        panel.style.opacity = "1";
+        panel.style.visibility = "visible";
+      } else {
+        panel.classList.add("hide");
+        panel.style.opacity = "0";
+        panel.style.visibility = "hidden";
+      }
+    });
+
+    window.serviceSliderState.activeIndex = initialIndex;
+    this.log("Service slider initialized successfully");
   },
 
   reinitialize: function () {
-    this.log("Reinitializing service slider after page transition");
+    this.log("Reinitializing service slider");
 
-    // Clean up any previous interval
-    if (this.checkInterval) {
-      clearInterval(this.checkInterval);
-      this.checkInterval = null;
-    }
-
-    // Clean up any previous state
-    if (window.serviceSliderState) {
-      try {
-        if (typeof window.serviceSliderState.cleanupListeners === "function") {
-          window.serviceSliderState.cleanupListeners();
-        }
-      } catch (e) {
-        this.log("Error during cleanup:", e);
-      }
-      window.serviceSliderState = null;
-    }
-
-    // Explicitly attempt to reinitialize Webflow components
+    // Simple approach: just re-run the initialization
+    // Add a small delay to ensure DOM is ready
     setTimeout(() => {
-      this.reinitializeWebflow();
-
-      // Wait a bit more for Webflow to process, then initialize our slider
-      setTimeout(() => {
-        this.initialize();
-      }, 200);
-    }, 50);
+      this.initialize();
+    }, 100);
   },
 };

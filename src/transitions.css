@@ -22,8 +22,25 @@ html.is-animating .transition-fade {
   background-color: #222;
   z-index: 9999;
   pointer-events: none;
-  transform: translateY(-100%);
+  transform: translateY(0); /* Changed default to visible */
   transition: transform 0.65s cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+/* Pulsing animation for loading state */
+@keyframes pulse-background {
+  0% {
+    background-color: #222;
+  }
+  50% {
+    background-color: #2e2e2e;
+  }
+  100% {
+    background-color: #222;
+  }
+}
+
+#swup-overlay.is-pulsing {
+  animation: pulse-background 1.75s ease-in-out infinite;
 }
 
 /* When animation starts, bring overlay down to cover screen */
@@ -38,11 +55,49 @@ html.is-animating #swup-overlay {
 }
 
 /* Initial page load styles - hide content until ready */
-html.is-initial-loading #swup {
+html.is-initial-loading #swup,
+html.no-js #swup {
   opacity: 0;
 }
 
-/* Needed for initial load animation */
-html.is-initial-loading #swup-overlay {
+/* Nav wrapper animation for initial load - positioned 20vh above the viewport */
+html.is-initial-loading #nav-wrapper,
+html.no-js #nav-wrapper {
+  transform: translateY(-20vh);
+  transition: none;
+}
+
+/* Normal nav wrapper state */
+#nav-wrapper {
   transform: translateY(0);
+  transition: transform 0.75s cubic-bezier(0.19, 1, 0.22, 1);
+  will-change: transform;
+}
+
+/* Disable interactions during page transitions */
+html.is-animating,
+html.is-changing {
+  cursor: wait !important; /* Show loading cursor during transitions */
+}
+
+/* This makes sure all elements inherit the waiting cursor */
+html.is-animating *,
+html.is-changing * {
+  cursor: wait !important;
+  pointer-events: none !important;
+}
+
+/* Ensure the swup overlay can still receive events */
+html.is-animating #swup-overlay,
+html.is-changing #swup-overlay {
+  pointer-events: auto !important;
+}
+
+/* Additional style for when scrolling is paused */
+body.scroll-paused {
+  overflow: hidden !important;
+}
+
+html.scroll-paused {
+  overflow: hidden !important;
 }

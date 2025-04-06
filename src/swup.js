@@ -1,11 +1,16 @@
+// swup.js - Updated to control scrolling during transitions
 window.App = window.App || {};
 window.App.Swup = {
+  isTransitioning: false,
+  cooldownTimer: null,
+
   initialize: function () {
     if (window.App.Core.swupInstance) return window.App.Core.swupInstance;
 
     // Ensure the overlay element exists
     this.ensureOverlayElement();
 
+    // Create Swup instance with custom link selector that checks transition state
     window.App.Core.swupInstance = new Swup({
       containers: ["#swup"],
       cache: true,
@@ -18,16 +23,33 @@ window.App.Swup = {
         new SwupScriptsPlugin({ head: true, body: true, optin: true }),
       ],
       animateHistoryBrowsing: true,
+      linkSelector:
+        'a[href^="' +
+        window.location.origin +
+        '"]:not([data-no-swup]), a[href^="/"]:not([data-no-swup]), a[href^="#"]:not([data-no-swup])',
     });
 
+    // Add custom link click handler to prevent multiple transitions
+    this.setupLinkInterception();
+
+    // Track transition state
     window.App.Core.swupInstance.hooks.on("animation:out:start", () => {
+      this.isTransitioning = true;
+
+      // Pause scrolling during transition
+      if (window.App.LocomotiveScroll) {
+        window.App.LocomotiveScroll.pause();
+      }
+
       if (window.App.Core.scrollInstance) {
         window.App.Core.scrollInstance.destroy();
         window.App.Core.scrollInstance = null;
       }
       window.App.Core.animationStartTime = Date.now();
+
+      // Explicitly add classes to disable interactions
       document.documentElement.classList.add("is-animating");
-      document.body.style.pointerEvents = "none";
+      document.documentElement.classList.add("is-changing");
 
       // Animation: show the overlay sliding from top
       const overlay = document.getElementById("swup-overlay");
@@ -47,7 +69,17 @@ window.App.Swup = {
       }, 100);
 
       setTimeout(() => {
-        // Initialize our components
+        // Force Webflow to reinitialize components
+        if (window.Webflow) {
+          if (Webflow.require("ix2")) {
+            Webflow.require("ix2").init();
+          }
+          if (typeof Webflow.ready === "function") {
+            Webflow.ready();
+          }
+        }
+
+        // Initialize components - order matters here
         window.App.LocomotiveScroll.initialize();
         window.App.Quicklink.initialize();
         window.App.LocomotiveScroll.setupGoToTopButton();
@@ -61,53 +93,117 @@ window.App.Swup = {
         window.App.Footer.initialize();
         window.App.ProfilePlaceholders.initialize();
 
-        // Handle service slider
+        // Initialize click redirect handler
+        if (window.App.ClickRedirectHandler) {
+          window.App.ClickRedirectHandler.initialize();
+        }
+
+        // Handle service slider if present
         const hasServiceSlider = !!document.querySelector(
           ".service-overview-slider"
         );
+        console.log("[Swup] Service slider present?", hasServiceSlider);
+
         if (hasServiceSlider) {
-          setTimeout(() => {
-            window.App.ServiceSlider.reinitialize();
-          }, 200);
+          window.App.ServiceSlider.initialize();
+          setTimeout(() => window.App.ServiceSlider.reinitialize(), 500);
         }
 
+        // Handle looping videos
+        if (window.App.VideoLoopHandler) {
+          window.App.VideoLoopHandler.reinitialize();
+        }
+
+        // Re-enable interactions when animation is complete
         document.documentElement.classList.remove("is-animating");
-        document.body.style.pointerEvents = "";
-
-        // Force Webflow to reinitialize components
-        if (window.Webflow) {
-          if (Webflow.require("ix2")) {
-            Webflow.require("ix2").init();
-          }
-          if (typeof Webflow.ready === "function") {
-            Webflow.ready();
-          }
-        }
+        document.documentElement.classList.remove("is-changing");
       }, remaining + 600); // Added extra time for the overlay animation
     });
 
     // Add animation:in:end hook to reset the overlay
     window.App.Core.swupInstance.hooks.on("animation:in:end", () => {
       setTimeout(() => {
-        // Hide overlay by positioning it back above the viewport
-        // But only do this AFTER the transition is complete and it's off-screen at the bottom
         const overlay = document.getElementById("swup-overlay");
         overlay.classList.remove("is-leaving");
-
-        // Important: Use a transition with no animation to reset the position
         overlay.style.transition = "none";
         overlay.style.transform = "translateY(-100%)";
 
         // Force a reflow to ensure the transition is applied
         overlay.offsetHeight;
 
-        // Restore the smooth transition for next page change
+        // Restore the smooth transition for page changes
         overlay.style.transition =
-          "transform 0.6s cubic-bezier(0.76, 0, 0.24, 1)";
+          "transform 0.65s cubic-bezier(0.76, 0, 0.24, 1)";
+
+        // Final check for videos - especially helpful on mobile
+        if (window.App.VideoLoopHandler) {
+          window.App.VideoLoopHandler.playAllLoopingVideos();
+        }
+
+        // Make sure interactions are re-enabled
+        document.documentElement.classList.remove("is-animating");
+        document.documentElement.classList.remove("is-changing");
+
+        // Resume scrolling now that transition is complete
+        if (window.App.LocomotiveScroll) {
+          window.App.LocomotiveScroll.resume();
+        }
+
+        // Set transition state to false with a small cooldown period
+        if (this.cooldownTimer) clearTimeout(this.cooldownTimer);
+        this.cooldownTimer = setTimeout(() => {
+          this.isTransitioning = false;
+          console.log("[Swup] Ready for next transition");
+        }, 50); // 50ms cooldown before allowing another transition
       }, 700);
     });
 
     return window.App.Core.swupInstance;
+  },
+
+  setupLinkInterception: function () {
+    // Intercept link clicks to check if a transition is already in progress
+    document.addEventListener(
+      "click",
+      (event) => {
+        // Only process link clicks
+        if (
+          !event.target.tagName ||
+          event.target.tagName.toLowerCase() !== "a"
+        ) {
+          // Check if we clicked something inside a link
+          const parentLink = event.target.closest("a");
+          if (!parentLink) {
+            return; // Not a link or child of link, ignore
+          }
+
+          // Use the parent link instead
+          event.target = parentLink;
+        }
+
+        const link = event.target;
+
+        // Check if this is a Swup-handled link
+        if (
+          link.href &&
+          !link.hasAttribute("data-no-swup") &&
+          (link.href.startsWith(window.location.origin) ||
+            link.getAttribute("href").startsWith("/") ||
+            link.getAttribute("href").startsWith("#"))
+        ) {
+          // Check if we're currently transitioning
+          if (this.isTransitioning) {
+            console.log(
+              "[Swup] Transition already in progress, ignoring click"
+            );
+            event.preventDefault();
+            event.stopPropagation();
+            return false;
+          }
+        }
+      },
+      true
+    ); // Use capture phase to intercept before Swup
   },
 
   ensureOverlayElement: function () {
