@@ -1,16 +1,16 @@
-(function() {
-  const transparent = 'rgba(0, 0, 0, 0)';
-  const forceTransparent = el => {
+(function () {
+  const transparent = "rgba(0, 0, 0, 0)";
+  const forceTransparent = (el) => {
     const bg = window.getComputedStyle(el).backgroundColor;
-    if (bg !== transparent && bg !== 'transparent') {
-      el.style.setProperty('background-color', 'transparent', 'important');
-      el.style.setProperty('background-image', 'none', 'important');
+    if (bg !== transparent && bg !== "transparent") {
+      el.style.setProperty("background-color", "transparent", "important");
+      el.style.setProperty("background-image", "none", "important");
     }
   };
 
   const monitorElements = () => {
-    const elements = document.querySelectorAll('input, textarea, select');
-    elements.forEach(el => forceTransparent(el));
+    const elements = document.querySelectorAll("input, textarea, select");
+    elements.forEach((el) => forceTransparent(el));
   };
 
   const observer = new MutationObserver(() => {
@@ -22,11 +22,11 @@
     attributes: true,
     subtree: true,
     childList: true,
-    attributeFilter: ['style', 'class']
+    attributeFilter: ["style", "class"],
   });
 
   const interval = setInterval(monitorElements, 500);
 
-  document.addEventListener('DOMContentLoaded', monitorElements);
-  window.addEventListener('load', monitorElements);
+  document.addEventListener("DOMContentLoaded", monitorElements);
+  window.addEventListener("load", monitorElements);
 })();

@@ -1,4 +1,4 @@
-// swup.js - Updated to control scrolling during transitions
+// swup.js - Updated for better performance on initial load
 window.App = window.App || {};
 window.App.Swup = {
   isTransitioning: false,
@@ -6,6 +6,9 @@ window.App.Swup = {
 
   initialize: function () {
     if (window.App.Core.swupInstance) return window.App.Core.swupInstance;
+
+    // Record start time for performance tracking
+    const initStartTime = performance.now();
 
     // Ensure the overlay element exists
     this.ensureOverlayElement();
@@ -18,9 +21,14 @@ window.App.Swup = {
       plugins: [
         new SwupHeadPlugin({
           persistTags: "style[data-swup-persist], script[data-swup-persist]",
-          awaitAssets: true,
+          awaitAssets: false, // Don't wait for all assets on head replace
         }),
-        new SwupScriptsPlugin({ head: true, body: true, optin: true }),
+        new SwupScriptsPlugin({
+          head: true,
+          body: true,
+          optin: true,
+          defer: true, // Add defer to injected scripts
+        }),
       ],
       animateHistoryBrowsing: true,
       linkSelector:
@@ -68,56 +76,8 @@ window.App.Swup = {
         overlay.classList.add("is-leaving");
       }, 100);
 
-      setTimeout(() => {
-        // Force Webflow to reinitialize components
-        if (window.Webflow) {
-          if (Webflow.require("ix2")) {
-            Webflow.require("ix2").init();
-          }
-          if (typeof Webflow.ready === "function") {
-            Webflow.ready();
-          }
-        }
-
-        // Initialize components - order matters here
-        window.App.LocomotiveScroll.initialize();
-        window.App.Quicklink.initialize();
-        window.App.LocomotiveScroll.setupGoToTopButton();
-        window.App.Utils.runCopyrightYearScript();
-        window.App.Utils.runDateZeroScript();
-        window.App.NotAnother.initialize();
-        window.App.Navigation.initialize();
-        window.App.Newsletter.initialize();
-        window.App.Contact.initialize();
-        window.App.InsightsSorting.initialize();
-        window.App.Footer.initialize();
-        window.App.ProfilePlaceholders.initialize();
-
-        // Initialize click redirect handler
-        if (window.App.ClickRedirectHandler) {
-          window.App.ClickRedirectHandler.initialize();
-        }
-
-        // Handle service slider if present
-        const hasServiceSlider = !!document.querySelector(
-          ".service-overview-slider"
-        );
-        console.log("[Swup] Service slider present?", hasServiceSlider);
-
-        if (hasServiceSlider) {
-          window.App.ServiceSlider.initialize();
-          setTimeout(() => window.App.ServiceSlider.reinitialize(), 500);
-        }
-
-        // Handle looping videos
-        if (window.App.VideoLoopHandler) {
-          window.App.VideoLoopHandler.reinitialize();
-        }
-
-        // Re-enable interactions when animation is complete
-        document.documentElement.classList.remove("is-animating");
-        document.documentElement.classList.remove("is-changing");
-      }, remaining + 600); // Added extra time for the overlay animation
+      // Use priority-based initialization to improve performance
+      this.initializeComponents(remaining + 600);
     });
 
     // Add animation:in:end hook to reset the overlay
@@ -135,11 +95,6 @@ window.App.Swup = {
         overlay.style.transition =
           "transform 0.65s cubic-bezier(0.76, 0, 0.24, 1)";
 
-        // Final check for videos - especially helpful on mobile
-        if (window.App.VideoLoopHandler) {
-          window.App.VideoLoopHandler.playAllLoopingVideos();
-        }
-
         // Make sure interactions are re-enabled
         document.documentElement.classList.remove("is-animating");
         document.documentElement.classList.remove("is-changing");
@@ -155,10 +110,83 @@ window.App.Swup = {
           this.isTransitioning = false;
           console.log("[Swup] Ready for next transition");
         }, 50); // 50ms cooldown before allowing another transition
+
+        // Initialize non-critical components after transition is complete
+        this.initializeLowPriorityComponents();
       }, 700);
     });
 
+    console.log(
+      `[Swup] Initialization time: ${(
+        performance.now() - initStartTime
+      ).toFixed(2)}ms`
+    );
     return window.App.Core.swupInstance;
+  },
+
+  // New method to initialize components in priority order
+  initializeComponents: function (delay) {
+    setTimeout(() => {
+      // Critical components - initialize these first
+      if (window.Webflow && Webflow.require("ix2")) {
+        Webflow.require("ix2").init();
+      }
+
+      // High priority - core functionality and visible elements
+      window.App.LocomotiveScroll.initialize();
+      window.App.Navigation.initialize();
+      if (window.App.VideoLoopHandler) {
+        window.App.VideoLoopHandler.reinitialize();
+      }
+
+      // Medium priority - UI elements not immediately visible or interactive
+      window.App.LocomotiveScroll.setupGoToTopButton();
+      window.App.Footer.initialize();
+
+      // Re-enable interactions when critical components are ready
+      document.documentElement.classList.remove("is-animating");
+      document.documentElement.classList.remove("is-changing");
+
+      // After a short delay, initialize remaining components
+      setTimeout(() => {
+        // Now load QuickLink - this runs last to avoid competing for resources
+        window.App.Quicklink.initialize();
+      }, 700);
+    }, delay);
+  },
+
+  // Low priority components to initialize after everything else
+  initializeLowPriorityComponents: function () {
+    // These are components that aren't critical to the initial view
+    setTimeout(() => {
+      window.App.Utils.runCopyrightYearScript();
+      window.App.Utils.runDateZeroScript();
+      window.App.NotAnother.initialize();
+      window.App.Newsletter.initialize();
+      window.App.Contact.initialize();
+      window.App.InsightsSorting.initialize();
+      window.App.ProfilePlaceholders.initialize();
+
+      // Initialize click redirect handler
+      if (window.App.ClickRedirectHandler) {
+        window.App.ClickRedirectHandler.initialize();
+      }
+
+      // Handle service slider if present
+      const hasServiceSlider = !!document.querySelector(
+        ".service-overview-slider"
+      );
+
+      if (hasServiceSlider) {
+        window.App.ServiceSlider.initialize();
+        setTimeout(() => window.App.ServiceSlider.reinitialize(), 500);
+      }
+
+      // Final check for videos
+      if (window.App.VideoLoopHandler) {
+        window.App.VideoLoopHandler.playAllLoopingVideos();
+      }
+    }, 200);
   },
 
   setupLinkInterception: function () {
